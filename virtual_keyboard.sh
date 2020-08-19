@@ -54,6 +54,10 @@ do
         H) #Home
             k=27917969
             ;;
+        1) #Home for windows
+            read -rsn1 k
+            k=27917969
+            ;;
         2) #Insert
             read -rsn1 k
             k=27917970
