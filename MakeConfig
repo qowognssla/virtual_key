@@ -1,0 +1,599 @@
+MAKECONFIG_PATH := $(realpath ./)/../webos_hal/libkadaptor/system/include
+SVNSERVER ?= 172.21.0.100
+INC_DEF_HEADER = $(MAKECONFIG_PATH)../../inc/kadp_define.h
+
+### other setting###
+ENABLE_DEBUG = YES
+ADD_OPTIMIZE_OPTION = NO
+ERROR_CONCEALMENT_LEVEL = 0
+RECOVERY_JUMP_LEVEL = 128
+REMOTE_ID = RTK_MK5_TV_2
+ONLY_SUPPORT_2K = NO
+USE_OPTEE_V2_CONFIG = NO
+LGE_TOOLCHAIN = YES
+#LGE_TOOLCHAIN_64 = YES
+ifeq ($(LGE_TOOLCHAIN), NO)
+  MIPS_TOOLCHAIN = YES
+endif
+
+DEFINES =
+ENABLE_NRD413 = YES    	#for netflix lib
+IS_SIRIUS = YES		#for netflix config only
+ifeq (/usr/local/bin/ccache,$(wildcard /usr/local/bin/ccache))
+  CCACHE            := ccache
+else
+        ifeq (/usr/bin/ccache,$(wildcard /usr/bin/ccache))
+          CCACHE            := ccache
+        else
+          CCACHE            :=
+        endif
+endif
+
+### toolchain setting
+ifeq ($(LGE_TOOLCHAIN_64), YES)
+TOOLCHAIN_NAME       = arm-lg115x-linux-gnueabi-4.8-2014.08-1-x86_64
+TOOLCHAIN_VER        = arm-lg115x
+MYARCH               = arm
+else
+ifeq ($(LGE_TOOLCHAIN), YES)
+TOOLCHAIN_NAME       = x86_64-starfishsdk-linux
+TOOLCHAIN_VER        = arm-i686
+MYARCH               = arm
+else
+ifeq ($(MIPS_TOOLCHAIN), YES)
+	TOOLCHAIN_NAME       = rsdk-4.4.7-4181-EL-2.6.34-0.9.30-m32u-140429
+	TOOLCHAIN_VER        = rsdk447_4181_140429
+else
+TOOLCHAIN_NAME       = asdk-4.8.3-a12-EL-3.10-0.9.33-a32nt-140717
+TOOLCHAIN_VER        = arma12_140717
+MYARCH               = arm
+endif
+endif
+endif
+
+TOOLCHAIN_SWITCH_DIR = $(MAKECONFIG_PATH)/../toolchain
+TOOLCHAIN_UNTAR_DIR  = $(MAKECONFIG_PATH)/../toolchain/gcc8
+TOOLCHAIN_TARBALL    = $(MAKECONFIG_PATH)/../toolchain/gcc8/$(TOOLCHAIN_NAME).tar.bz2
+
+TOOLCHAIN_RPATH      = http://$(SVNSERVER)/svn/col/DVR/macarthur3/software/system/kernel/system/toolchain/
+TOOLCHAIN_GDBPATH      = http://$(SVNSERVER)/svn/col/DVR/macarthur3/software/system/kernel/system/bin/arm-linux-gdb
+TOOLCHAIN_GDBROOTPATH      = $(MAKECONFIG_PATH)/../toolchain/gcc8/$(TOOLCHAIN_NAME)/bin/arm-linux-gdb
+
+
+ifeq ($(LGE_TOOLCHAIN), YES)
+TOOLCHAIN_DIR		= $(MAKECONFIG_PATH)/../toolchain/gcc8/sysroots/
+TOOLCHAIN_ROOT		= $(MAKECONFIG_PATH)/../toolchain/gcc8/sysroots/$(TOOLCHAIN_NAME)/usr/bin/arm-starfish-linux-gnueabi/
+TOOLCHAIN_SCRIPT	= $(TOOLCHAIN_UNTAR_DIR)/starfish-sdk-x86_64-ca9v1-toolchain-5.0.0-20190307.sh
+else
+TOOLCHAIN_DIR        = $(MAKECONFIG_PATH)/../toolchain/gcc8/$(TOOLCHAIN_NAME)
+TOOLCHAIN_ROOT       = $(MAKECONFIG_PATH)/../toolchain/gcc8/$(TOOLCHAIN_NAME)/bin
+endif
+
+ifdef PKG_CONFIG_SYSROOT_DIR
+MYCC := $(CC)
+MYCXX := $(CXX)
+MYAR := $(AR)
+MYRANLIB := $(RANLIB)
+MYLD := $(LD)
+MYSTRIP := $(STRIP)
+else
+ifeq ($(MIPS_TOOLCHAIN), YES)
+	_CC = $(TOOLCHAIN_ROOT)/mips-linux-gcc
+        _CXX = $(TOOLCHAIN_ROOT)/mips-linux-g++
+        MYCC = $(CCACHE) $(_CC)
+        MYCXX = $(CCACHE) $(_CXX)
+        MYAR = $(TOOLCHAIN_ROOT)/mips-linux-ar
+        MYRANLIB = $(TOOLCHAIN_ROOT)/mips-linux-ranlib
+        MYLD = $(TOOLCHAIN_ROOT)/mips-linux-ld
+        MYSTRIP = $(TOOLCHAIN_ROOT)/mips-linux-strip
+else
+
+SDKTARGETSYSROOT=$(TOOLCHAIN_DIR)/ca9v1-starfishmllib32-linux-gnueabi
+
+ifeq ($(ADD_OPTIMIZE_OPTION), YES)
+_CC = $(TOOLCHAIN_ROOT)/arm-starfish-linux-gnueabi-gcc  -march=armv7-a -mcpu=cortex-a9 -mfpu=neon -mtune=cortex-a9  -mfloat-abi=softfp -mthumb -mthumb-interwork -funwind-tables -ftree-vectorize -rdynamic -fstack-protector-strong  -D_FORTIFY_SOURCE=2 -D_GNU_SOURCE -DTARGET_BOARD -Werror=format-security -Wformat -Werror=unused-result -Os --sysroot=$(SDKTARGETSYSROOT) 
+_CXX =$(TOOLCHAIN_ROOT)/arm-starfish-linux-gnueabi-g++  -march=armv7-a -mcpu=cortex-a9 -mfpu=neon -mtune=cortex-a9  -mfloat-abi=softfp -mthumb -mthumb-interwork -funwind-tables -ftree-vectorize -rdynamic -fstack-protector-strong  -D_FORTIFY_SOURCE=2 -D_GNU_SOURCE -DTARGET_BOARD -Werror=format-security -Wformat -Werror=unused-result -Os --sysroot=$(SDKTARGETSYSROOT)
+else
+_CC = $(TOOLCHAIN_ROOT)/arm-starfish-linux-gnueabi-gcc  -march=armv7-a -mcpu=cortex-a9 -mfpu=neon -mtune=cortex-a9  -mfloat-abi=softfp -mthumb -mthumb-interwork -funwind-tables -ftree-vectorize -rdynamic -fstack-protector-strong  -D_FORTIFY_SOURCE=2 -Werror=format-security -Wformat -Werror=unused-result --sysroot=$(SDKTARGETSYSROOT)
+_CXX =$(TOOLCHAIN_ROOT)/arm-starfish-linux-gnueabi-g++  -march=armv7-a -mcpu=cortex-a9 -mfpu=neon -mtune=cortex-a9  -mfloat-abi=softfp -mthumb -mthumb-interwork -funwind-tables -ftree-vectorize -rdynamic -fstack-protector-strong  -D_FORTIFY_SOURCE=2 -Werror=format-security -Wformat -Werror=unused-result --sysroot=$(SDKTARGETSYSROOT)
+endif
+MYCC = $(_CC)
+MYCXX = $(_CXX)
+MYAR = $(TOOLCHAIN_ROOT)/arm-starfish-linux-gnueabi-ar
+MYRANLIB =$(TOOLCHAIN_ROOT)/arm-starfish-linux-gnueabi-ranlib
+MYLD = $(TOOLCHAIN_ROOT)/arm-starfish-linux-gnueabi-ld  --sysroot=$(SDKTARGETSYSROOT)
+MYSTRIP = $(TOOLCHAIN_ROOT)/arm-starfish-linux-gnueabi-strip
+endif
+endif
+
+toolchain_check := $(firstword $(wildcard $(TOOLCHAIN_DIR)))
+ifeq (,$(toolchain_check))
+
+ifdef PKG_CONFIG_SYSROOT_DIR
+define install_toolchain
+        echo "Define PKG_CONFIG_SYSROOT_DIR, using OE-build compiler define"
+endef
+else
+ifeq ($(LGE_TOOLCHAIN), YES)
+define install_toolchain
+		cd $(TOOLCHAIN_UNTAR_DIR);\sh $(TOOLCHAIN_SCRIPT) -y -d ./;
+        echo "RTK toochain folder doesn't exist" ; \
+		echo "No define PKG_CONFIG_SYSROOT_DIR, means in RTK server ; \
+        echo "system will run script to extract toolchain" ; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "################## Print Compiling Env Var. ##################"; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo Debug:TOOLCHAIN_SWITCH_DIR = "$(TOOLCHAIN_SWITCH_DIR)"; \
+        echo Debug:TOOLCHAIN_ROOT = "$(TOOLCHAIN_ROOT)"; \
+        echo Debug:LG_OEBUILD_TOOLCHAIN_PATH = "$(LG_OEBUILD_TOOLCHAIN_PATH)"; \
+        echo Debug:_CC = "$(_CC)"; \
+        echo Debug:_CXX = "$(_CXX)"; \
+        echo Debug:MYAR = "$(MYAR)"; \
+        echo Debug:MYRANLIB = "$(MYRANLIB)"; \
+        echo Debug:MYLD = "$(MYLD)"; \
+        echo Debug:MYSTRIP = "$(MYSTRIP)"; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo "##################                          ##################"; \
+        echo "################## End of Printing Env var. ##################"; \
+        echo "##################                          ##################"; \
+        echo ":-)";
+endef
+else
+define install_toolchain
+        echo "Define PKG_CONFIG_SYSROOT_DIR, using OE-build compiler define"
+endef
+endif
+endif
+else
+define install_toolchain
+        echo "RTK toolchain folder is ready!" ; \
+        echo "system will take compiling env located at RTK site "; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "################## Print Compiling Env Var. ##################"; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "##################                          ##################"; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo Debug:TOOLCHAIN_SWITCH_DIR = "$(TOOLCHAIN_SWITCH_DIR)"; \
+        echo Debug:TOOLCHAIN_ROOT = "$(TOOLCHAIN_ROOT)"; \
+        echo Debug:LG_OEBUILD_TOOLCHAIN_PATH = "$(LG_OEBUILD_TOOLCHAIN_PATH)"; \
+        echo Debug:_CC = "$(_CC)"; \
+        echo Debug:_CXX = "$(_CXX)"; \
+        echo Debug:MYAR = "$(MYAR)"; \
+        echo Debug:MYRANLIB = "$(MYRANLIB)"; \
+        echo Debug:MYLD = "$(MYLD)"; \
+        echo Debug:MYSTRIP = "$(MYSTRIP)"; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo "                                                              "; \
+        echo "##################                          ##################"; \
+        echo "################## End of Printing Env var. ##################"; \
+        echo "##################                          ##################"; \
+        echo ":-)";
+endef	
+endif
+
+
+### end toolchain setting
+
+### start to add define
+DEFINES += \
+-DDVR   \
+-DIS_TV_CHIP   \
+-DLITTLE_ENDIAN   \
+-DENABLE_CHECK_AUDIO_AFTER_SWITCHING_CHANNNEL   \
+-DPLAY_PAUSE_SHARE_REMOTE_KEY   \
+-DKERNEL_2_6_34   \
+-DSKIP_HIDDEN_FILE   \
+-DREDUCE_CODE_SIZE   \
+-DATSC_T   \
+-DENABLE_EAM                               \
+-DENABLE_ATSC_DEMOD_SPEED_UP   \
+-DHDMINoUse   \
+-DUSE_HDCP   \
+-DUSE_HD_SURFACE   \
+-DINPUT_USE_IO_PLUGIN   \
+-DHAS_DTV_HW   \
+"-DIS_CHIP(MODEL)=((CHIP_MODEL & 0xFFF0) == MODEL)"   \
+"-DCHIP_MODEL=0"   \
+"-DVENUS=0x1001"   \
+"-DNEPTUNE=0x1002"   \
+"-DMARS=0x1003"   \
+"-DJUPITER=0x1005"   \
+"-DSATURN=0x1006"   \
+"-DAP_CONFIG_WITH(MODULE)=((APCFG_FLAGS)&(MODULE))"   \
+"-DAPCFG_LIMIT=0x0000000000000000LL"   \
+"-DAPCFG_HW_USB=0x0000000000000001LL"   \
+"-DAPCFG_HW_HDD=0x0000000000000002LL"   \
+"-DAPCFG_HW_DVD=0x0000000000000004LL"   \
+"-DAPCFG_HW_1394=0x0000000000000008LL"   \
+"-DAPCFG_HW_SCART=0x0000000000000010LL"   \
+"-DAPCFG_HW_ANALOG_INPUT=0x0000000000000020LL"   \
+"-DAPCFG_HW_ATV=0x0000000000000040LL"   \
+"-DAPCFG_HW_ATV_MTS=0x0000000000000080LL"   \
+"-DAPCFG_HW_DTV=0x0000000000000100LL"   \
+"-DAPCFG_HW_NET_ETH0=0x0000000000000400LL"   \
+"-DAPCFG_HW_NET_WLAN0=0x0000000000000800LL"   \
+"-DAPCFG_HW_CARD=0x0000000000001000LL"   \
+"-DAPCFG_HW_NET_WL_WPA=0x0000000000002000LL"   \
+"-DAPCFG_DTV_CC=0x0000000000004000LL"   \
+"-DAPCFG_DTV_TT=0x0000000000008000LL"   \
+"-DAPCFG_HW_CI=0x0000000000010000LL"   \
+"-DAPCFG_JAVASCRIPT_ENGINE=0x0000000000010000LL"   \
+"-DAPCFG_USE_SW_JPEG_IMAGE=0x0000000000020000LL"   \
+"-DAPCFG_HW_STRETCH_SW_IMG=0x0000000000040000LL"   \
+"-DAPCFG_USE_PNG_IMAGE=0x0000000000080000LL"   \
+"-DAPCFG_USE_GIF_IMAGE=0x0000000000100000LL"   \
+"-DAPCFG_APP_RECORDABLE=0x0000000000200000LL"   \
+"-DAPCFG_MODULE_IMS=0x0000000000400000LL"   \
+"-DAPCFG_FONT_BIDI=0x0000000000800000LL"   \
+"-DAPCFG_INPUT_USBKBD_CONTROL=0x0000000001000000LL"   \
+"-DAPCFG_INPUT_TTY_CONTROL=0x0000000002000000LL"   \
+"-DAPCFG_INPUT_TTS_CONTROL=0x0000000004000000LL"   \
+"-DAPCFG_INPUT_IR_CONTROL=0x0000000008000000LL"   \
+"-DAPCFG_INPUT_PANEL_CONTROL=0x0000000010000000LL"   \
+"-DAPCFG_INPUT_IPC_CONTROL=0x0000000020000000LL"   \
+"-DAPCFG_INPUT_USBMOUSE_CONTROL=0x0000000040000000LL"   \
+"-DAPCFG_INPUT_KEYPAD_CONTROL=0x0000000080000000LL"   \
+"-DAPCFG_REC_FORMAT_VR=0x0000000100000000LL"   \
+"-DAPCFG_REC_FORMAT_FILE=0x0000000200000000LL"   \
+"-DAPCFG_JPG_TRANS_EFFECT=0x0000000400000000LL"   \
+"-DAPCFG_READONLY_SETUP=0x0000000800000000LL"   \
+"-DAPCFG_GUIFRAMEWORK_BY_TOOL=0x0000001000000000LL"   \
+"-DAAPCFG_APP_RSS_EPG=0x0000002000000000LL"   \
+"-DAPCFG_SMOOTH_TRICK_PLAY=0x0000004000000000LL"   \
+"-DAPCFG_APP_ARPHIC_MFONT=0x0000008000000000LL"   \
+"-DAPCFG_APP_SCHEDULE_RECORD=0x0000010000000000LL"   \
+"-DAPCFG_APP_SETUP_MENU=0x0000020000000000LL"   \
+"-DAPCFG_APP_SW_OSD_SCALER=0x0000040000000000LL"   \
+"-DAPCFG_APP_HI_FONT=0x0000080000000000LL"   \
+"-DAPCFG_APP_KARAOKE=0x0000100000000000LL"   \
+"-DAPCFG_APP_UPNP=0x0000200000000000LL"   \
+"-DAPCFG_APP_BITTORRENT=0x0000400000000000LL"   \
+"-DAPCFG_APP_HTTPCLIENT=0x0000800000000000LL"   \
+"-DAPCFG_APP_UPNPDLNA1p5=0x0001000000000000LL"   \
+"-DAPCFG_USE_SQLITE_SETUP=0x0002000000000000LL"   \
+"-DAPCFG_USE_WIFI_WPS=0x0004000000000000LL"   \
+"-DAPCFG_PRJ_DVR=0x0008000000000000LL"   \
+"-DAPCFG_PRJ_PVR=0x0010000000000000LL"   \
+"-DAPCFG_PRJ_AVHDD=0x0020000000000000LL"   \
+"-DAPCFG_PRJ_PLAYER=0x0040000000000000LL"   \
+"-DAPCFG_PRJ_PVR_BOX=0x0080000000000000LL"   \
+"-DAPCFG_LAG_CHINESE=0x0100000000000000LL"   \
+"-DAPCFG_LAG_SCHINESE=0x0200000000000000LL"   \
+"-DAPCFG_LAG_JAPANESE=0x0400000000000000LL"   \
+"-DAPCFG_LAG_KOREAN=0x0800000000000000LL"   \
+"-DAPCFG_LAG_EUROPEAN=0x1000000000000000LL"   \
+"-DAPCFG_LAG_ARABIC=0x2000000000000000LL"   \
+"-DAPCFG_LAG_THAI=0x4000000000000000LL"   \
+"-DAPCFG_LAG_HEBREW=0x8000000000000000LL"   \
+-DAPCFG_FLAGS="APCFG_LIMIT |APCFG_HW_USB|APCFG_HW_ANALOG_INPUT|APCFG_HW_ATV|APCFG_HW_DTV |APCFG_INPUT_TTY_CONTROL|APCFG_INPUT_IR_CONTROL |APCFG_INPUT_KEYPAD_CONTROL |APCFG_SMOOTH_TRICK_PLAY|APCFG_JPG_TRANS_EFFECT |APCFG_MODULE_IMS|APCFG_HW_STRETCH_SW_IMG | APCFG_USE_PNG_IMAGE |APCFG_LIMIT"   \
+"-DDTV_TUNER_ID = 0"   \
+-DTARGET_BOARD   \
+-D_FILE_OFFSET_BITS=64   \
+-D_LARGEFILE_SOURCE   \
+-D_LARGEFILE64_SOURCE   \
+-DENABLE_SRS_SURROUND   \
+-DCASABLANCA   \
+-DBUILD_TV036_1_DVB   \
+-DUSE_OSD_SIZE_1280x720   \
+-DENABLE_SW_PCR_TRACKING   \
+-DENABLE_DTV_SYSTEM_MASTER   \
+-DENABLE_DTV_OSD_CONTROL   \
+-DSUPPORT_DEMOD_STANDBY_MODE   \
+-DDTV_WEAK_SIGNAL_DETECT   \
+-DENABLE_FW2SYSTEM_RPC_HOOK_FUNCTION_IN_COMMON   \
+-DRUN_ON_MACARTHUR3   \
+-DIS_MACARTHUR3   \
+-DIS_MERLIN3	\
+-DIS_ARCH_ARM_COMMON   \
+-DRUN_ON_ARM_SERIES   \
+-DENABLE_SDEC   \
+-DENABLE_DTV_DUAL_AUDIO   \
+-DRDDEBUG   \
+-DTEST_TS \
+-DAFEIF_RTKATV_TUNER0_CVBS_OUT \
+-DENABLE_AUDIO_SUPPORT_MULTIPLE_REMOTE \
+-DLGE_FRONTEND_INIT
+
+DEFINES += -DAUDIO_C_MODEL
+
+#for NETFLIX
+DEFINES += -DNF_SKIP
+
+#for 2K/4k define
+#
+ifeq ($(ONLY_SUPPORT_2K), YES)
+DEFINES+= -DCONFIG_REALTEK_2K_MODEL_ENABLED
+endif
+#
+#
+
+ifeq ($(ADD_OPTIMIZE_OPTION), YES)
+DEFINES+= -O2 -pipe -feliminate-unused-debug-types 
+endif
+
+ifeq ($(ENABLE_DEBUG), YES)
+DEFINES+= -Os -g
+else
+DEFINES+= -Os
+endif
+
+#
+WARNING= -Wall \
+    -Wno-unused-function \
+    -Wno-unused-variable \
+    -fno-strict-aliasing \
+    -Wno-multichar \
+    -Wno-write-strings \
+    -ffunction-sections \
+    -fdata-sections
+
+DEFINES += $(WARNING)
+
+
+##########################################################################################
+# TrustZone(TEE)                                                                         #
+##########################################################################################
+SUPPORT_TEE = YES
+ifeq ($(SUPPORT_TEE), YES)
+
+  ENABLE_WV_OEMCRYPTO = NO
+  ifeq ($(ENABLE_WV_OEMCRYPTO), YES)
+    DEFINES += -DENABLE_WV_OEMCRYPTO
+  endif
+
+  ENABLE_WV_OEMCRYPTOCENC = NO
+  ifeq ($(ENABLE_WV_OEMCRYPTOCENC), YES)
+    DEFINES += -DENABLE_WV_OEMCRYPTOCENC
+  endif
+
+  ENABLE_WV_OEMCRYPTOCENC_V9 = NO
+  ifeq ($(ENABLE_WV_OEMCRYPTOCENC_V9), YES)
+    DEFINES += -DENABLE_WV_OEMCRYPTOCENC_V9
+  endif
+
+  ENABLE_WV_OEMCRYPTOCENC_V10 = NO
+  ifeq ($(ENABLE_WV_OEMCRYPTOCENC_V10), YES)
+    DEFINES += -DENABLE_WV_OEMCRYPTOCENC_V10
+  endif
+
+  ENABLE_WV_OEMCRYPTOCENC_V12 = NO
+  ifeq ($(ENABLE_WV_OEMCRYPTOCENC_V12), YES)
+    DEFINES += -DENABLE_WV_OEMCRYPTOCENC_V12
+  endif
+
+  ENABLE_WV_OEMCRYPTOCENC_V13 = NO
+  ifeq ($(ENABLE_WV_OEMCRYPTOCENC_V13), YES)
+    DEFINES += -DENABLE_WV_OEMCRYPTOCENC_V13
+  endif
+
+  ENABLE_JPMARLIN = YES
+  ifeq ($(ENABLE_JPMARLIN), YES)
+    DEFINES += -DENABLE_JPMARLIN
+  endif
+
+  ENABLE_INTERTRUST_MARLIN = YES
+  ifeq ($(ENABLE_INTERTRUST_MARLIN), YES)
+    DEFINES += -DENABLE_INTERTRUST_MARLIN
+  endif
+endif
+
+##########################################################################################
+# TrustZone for KCPU branch config, set ENABLE_SECURE_CPU = YES                          #
+##########################################################################################
+ifeq ($(SUPPORT_TEE)$(MIPS_TOOLCHAIN), YESYES)
+  ENABLE_SECURE_CPU = YES
+  ifeq ($(ENABLE_SECURE_CPU), YES)
+    DEFINES += -DENABLE_SECURE_CPU
+    ENABLE_TEE_ON_KCPU = YES
+  endif
+else
+	IS_SCPU = YES
+    DEFINES += -DIS_SCPU
+endif
+
+#######################################################################
+# Demod & Tuner
+#######################################################################
+#SENSITIVITY_DB_EN = N
+#DTV_TEST_TOOL_SUPPORT = Y
+TUNER_0_I2C_CHANNEL = 0
+TUNER_1_I2C_CHANNEL = 1
+INTERNAL_DEMOD_I2C_CHANNEL = 0
+#DEFINES += -DRUNNING_DDTS
+
+# Demod Auto Testing Tool #
+# DEFINES += -DENABLE_DTV_AUTO_TEST_THREAD
+
+### External Demod ###
+#TP0_FE = DTV_FE_SI2169C_SI2178B_DVBT
+
+### Internal Demod ###
+TP0_FE = DTV_FE_REALTEK_TUNERNULL_ALL
+#TP0_FE = DTV_FE_REALTEK_SI2178B_ALL
+#TP0_FE = DTV_FE_REALTEK_RDA5815M_ALL
+
+ifeq ($(TP0_FE), DTV_FE_REALTEK_TUNERNULL_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_REALTEK_SI2178B_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_REALTEK_RDA5815M_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+
+ifeq ($(TP0_FE), DTV_FE_RTD299S_TUNERNULL_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD299S_SI2178B_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD299S_SI2151_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD299S_TDA18275A_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    DEFINES += -DRUNNING_DDTS
+    DEFINES += -DCONFIG_TUNER_NXP_TDA18275A
+endif
+
+ifeq ($(TP0_FE), DTV_FE_SI2169C_SI2178B_DVBT)
+    DEFINES += -DADEMOD_USE_RHAL
+    DEFINES += -DUSE_EXTERNAL_DEMOD
+    DEFINES += -DDVBT_T2_AUTODETECT
+    DEFINES += -DUSE_PARALLEL_TP
+    DEFINES += -DCONTOL_DEMOD_ONLY
+    ADTV_FE_SUPPORT= NO
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD2945_TUNERNULL_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+  #  CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD2945_SI2178B_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD2945_SI2178B_ATSC_QAM)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT = YES
+    CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD2945_SI2178B_DVBT_DVBC)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT = YES
+    CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+    DEFINES += -DCONTOL_DEMOD_ONLY
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD2945_TDA18275A_ALL)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+    DEFINES += -DRUNNING_DDTS
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD2945_TDA18275A_ATSC_QAM)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+endif
+
+ifeq ($(TP0_FE), DTV_FE_RTD2945_TDA18275A_DVBT_DVBC)
+    DTV_TEST_TOOL_SUPPORT = Y
+    TUNER_0_I2C_CHANNEL = 0
+    INTERNAL_DEMOD_I2C_CHANNEL =0
+    ADTV_FE_SUPPORT= YES
+    CONFIG_SI2178B_IF_OUTPUT_INVERT = Y
+endif
+
+#######################################################################
+# GPU
+#######################################################################
+GPU_TYPE = pvr
+
+
+##########################################################################################
+# Select External Audio Amp Chip                                                         #
+# Available ID:                                                                          #
+# AUDIO_AMP_NTP7515                                                                      #
+# AUDIO_AMP_NONE                                                                         #
+##########################################################################################
+#AUDIO_AMP_TYPE = AUDIO_AMP_NONE
+AUDIO_AMP_TYPE = AUDIO_AMP_NTP7515
+
+ifeq ($(AUDIO_AMP_TYPE), AUDIO_AMP_NTP7515)
+    DEFINES += -DCONFIG_AUDIO_AMP_NTP7515
+endif
+
+DEFINES += -include $(INC_DEF_HEADER)
+
+#######################################################################
+## SMART CARD
+########################################################################
+ENABLE_DEFAULT_SMARTCARD = YES
+
+COMPILE_SHARED_LIB = YES
+BUILD_DYNAMIC_LIBRARY = YES
+
+#######################################################################
+##check thread deadlock
+#######################################################################
+#DEFINES += -DRTK_CHECK_DEADLOCK_THR
+
+###optee
+DEFINES += -DENABLE_CONFIG_OPTEE
