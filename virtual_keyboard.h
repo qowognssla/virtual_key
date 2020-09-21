@@ -127,6 +127,8 @@ int getKeycode(int value)
         return 115; // Volume Up
     case 27917977:
         return 114; // Volume Down
+    case 27917978:
+        return 904; // Adjust
     }
 
     // Digit Number

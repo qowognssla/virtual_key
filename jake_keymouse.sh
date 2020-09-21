@@ -97,6 +97,9 @@ do
             read -rsn1 k
             k=27917971
             ;;
+        F) #End
+            k=27917972
+            ;;
         5) #Page-Up
             read -rsn1 k
                 echo Page UP
@@ -111,6 +114,9 @@ do
             ;;
         Q) #F2
             k=27917977
+            ;;
+        R) #F3
+            k=27917978
             ;;
         esac
     esac
