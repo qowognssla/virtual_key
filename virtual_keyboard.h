@@ -18,7 +18,9 @@ int getKeycode(int value)
     switch (value)
     {
     case 27: //ESC
-        return 174; // Button EXIT  //KEY_ESC;
+        return 174; //KEY_ESC;
+    case 28: //Back
+        return 412;
     case 45: //Minus
         return KEY_MINUS;
     case 61: //Equal

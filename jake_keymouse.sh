@@ -40,7 +40,7 @@ do
     $'\x1b') # ESC
         echo "esc!"
         read -rsn1 k
-        [ "$k" == $'\x1b' ] && echo "esc!!" && k=27     # Esc-Key
+        [ "$k" == $'\x1b' ] && echo "esc!!" && k=28     # Back Key
         [ "$k" == "[" ] && read -rsn1 k
         [ "$k" == "O" ] && read -rsn1 k
         case "$k" in
